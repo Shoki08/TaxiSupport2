@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- iOS Safari用メタタグ -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="タクシー記録">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="icon-192.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="icon-192.png">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="icon-192.png">
+  
+  <title>タクシードライバーサポート</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    
+    input, textarea, button {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+    
+    .install-prompt {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.7));
+      color: white;
+      padding: 20px;
+      text-align: center;
+      z-index: 1000;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    
+    .install-prompt.show {
+      transform: translateY(0);
+    }
+    
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+      }
+      
+      .install-prompt {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .tab-active {
+      border-bottom: 2px solid #2563eb;
+      color: #2563eb;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-8">
+  <!-- ヘッダー -->
+  <div class="bg-blue-600 text-white p-4 shadow-lg sticky top-0 z-10">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <h1 class="text-xl sm:text-2xl font-bold">🚕 タクシー記録</h1>
+      <div class="flex gap-2">
+        <button id="overwriteSaveBtn" class="bg-green-500 hover:bg-green-400 px-3 py-2 rounded flex items-center gap-1 text-sm active:bg-green-600" title="上書き保存">
+          <span>💾</span>
+          <span class="hidden sm:inline">上書き保存</span>
+        </button>
+        <button id="exportBtn" class="bg-blue-500 hover:bg-blue-400 px-3 py-2 rounded flex items-center gap-1 text-sm active:bg-blue-600" title="名前を付けて保存">
+          <span>📥</span>
+          <span class="hidden sm:inline">別名保存</span>
+        </button>
+        <label class="bg-blue-500 hover:bg-blue-400 px-3 py-2 rounded flex items-center gap-1 text-sm cursor-pointer active:bg-blue-600">
+          <span>📂</span>
+          <span class="hidden sm:inline">読込</span>
+          <input type="file" id="importFile" accept=".json" class="hidden">
+        </label>
+        <button id="aiSettingsBtn" class="bg-blue-500 hover:bg-blue-400 px-2 py-2 rounded text-sm active:bg-blue-600" title="AI設定">
+          <span>⚙️</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-4xl mx-auto p-4">
+    <!-- タブナビゲーション -->
+    <div class="bg-white rounded-lg shadow mb-4">
+      <div class="flex border-b overflow-x-auto">
+        <button id="listTab" class="flex-1 px-3 py-3 font-semibold tab-active whitespace-nowrap">
+          経路一覧
+        </button>
+        <button id="searchTab" class="flex-1 px-3 py-3 font-semibold text-gray-600 whitespace-nowrap">
+          時間検索
+        </button>
+        <button id="dateTab" class="flex-1 px-3 py-3 font-semibold text-gray-600 whitespace-nowrap">
+          日付検索
+        </button>
+        <button id="aiTab" class="flex-1 px-3 py-3 font-semibold text-gray-600 whitespace-nowrap">
+          AI助言
+        </button>
+      </div>
+    </div>
+
+    <!-- 新規登録ボタン -->
+    <button id="addBtn" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-lg shadow mb-4 flex items-center justify-center gap-2">
+      <span>➕</span>
+      新しい乗車記録を追加
+    </button>
+
+    <!-- 入力フォーム -->
+    <div id="formContainer" class="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-4 hidden">
+      <h2 id="formTitle" class="text-xl font-bold mb-4">新しい乗車記録</h2>
+      <form id="rideForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold mb-1">📍 乗車地</label>
+          <input type="text" id="pickupLocation" class="w-full border border-gray-300 rounded px-3 py-2 text-base" placeholder="例：大阪駅" required>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-1">📍 降車地</label>
+          <input type="text" id="dropoffLocation" class="w-full border border-gray-300 rounded px-3 py-2 text-base" placeholder="例：梅田スカイビル" required>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-1">📅 日付（任意）</label>
+          <input type="date" id="rideDate" class="w-full border border-gray-300 rounded px-3 py-2 text-base">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold mb-1">🕐 乗車時刻</label>
+            <input type="time" id="pickupTime" class="w-full border border-gray-300 rounded px-3 py-2 text-base" required>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">🕐 降車時刻</label>
+            <input type="time" id="dropoffTime" class="w-full border border-gray-300 rounded px-3 py-2 text-base" required>
+          </div>
+        </div>
+
+        <div id="durationDisplay" class="bg-blue-50 p-3 rounded hidden">
+          <span class="text-sm font-semibold">所要時間：</span>
+          <span id="durationText" class="text-blue-600 font-bold"></span>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold mb-2">取得方法</label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="method" value="go" class="w-4 h-4" checked>
+              <span>Goアプリ</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="method" value="street" class="w-4 h-4">
+              <span>手挙げ</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button type="submit" id="submitBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2 px-4 rounded">
+            登録
+          </button>
+          <button type="button" id="cancelBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 active:bg-gray-500 text-gray-800 font-bold py-2 px-4 rounded">
+            キャンセル
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 時間検索タブ -->
+    <div id="searchContainer" class="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 hidden">
+      <label class="block text-sm font-semibold mb-2">🔍 乗車時刻で検索（前後15分）</label>
+      <input type="time" id="searchTime" class="w-full border border-gray-300 rounded px-3 py-2 text-base">
+      <p id="searchResult" class="text-sm text-gray-600 mt-2 hidden"></p>
+    </div>
+
+    <!-- 日付検索タブ -->
+    <div id="dateContainer" class="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 hidden">
+      <label class="block text-sm font-semibold mb-2">📅 日付で検索</label>
+      <input type="date" id="searchDate" class="w-full border border-gray-300 rounded px-3 py-2 text-base">
+      <p id="dateResult" class="text-sm text-gray-600 mt-2 hidden"></p>
+    </div>
+
+    <!-- AI助言タブ -->
+    <div id="aiContainer" class="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 hidden">
+      <div id="aiSetupMessage" class="text-center py-8">
+        <p class="text-gray-600 mb-4">🤖 AI助言機能を使用するには、Google Gemini APIキーが必要です</p>
+        <button id="aiSetupBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">
+          APIキーを設定
+        </button>
+        <p class="text-xs text-gray-500 mt-4">
+          <a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Google AI Studio</a> で無料のAPIキーを取得できます
+        </p>
+      </div>
+      
+      <div id="aiAdviceContent" class="hidden">
+        <div class="mb-4">
+          <label class="block text-sm font-semibold mb-2">🕐 現在の時刻</label>
+          <p id="currentTime" class="text-lg font-bold text-blue-600"></p>
+        </div>
+        
+        <button id="getAdviceBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded mb-4">
+          🤖 今の時間帯のアドバイスを取得
+        </button>
+        
+        <div id="aiAdviceResult" class="hidden">
+          <h3 class="font-bold mb-2">💡 AIからのアドバイス</h3>
+          <div id="aiAdviceText" class="bg-gray-50 p-4 rounded whitespace-pre-wrap"></div>
+        </div>
+        
+        <div id="aiLoading" class="hidden text-center py-8">
+          <div class="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+          <p class="text-gray-600 mt-2">AIが分析中...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI設定モーダル -->
+    <div id="aiSettingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h2 class="text-xl font-bold mb-4">🤖 AI設定</h2>
+        <div class="mb-4">
+          <label class="block text-sm font-semibold mb-2">Google Gemini APIキー</label>
+          <input type="password" id="apiKeyInput" class="w-full border border-gray-300 rounded px-3 py-2 text-base" placeholder="AIzaSy...">
+          <p class="text-xs text-gray-500 mt-1">
+            <a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Google AI Studio</a> で無料取得可能
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <button id="saveApiKeyBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            保存
+          </button>
+          <button id="closeApiSettingsBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
+            キャンセル
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 乗車記録一覧 -->
+    <div id="ridesList" class="space-y-3"></div>
+
+    <!-- 統計情報 -->
+    <div id="statsContainer" class="bg-white rounded-lg shadow p-4 mt-4 hidden">
+      <h3 class="font-bold mb-2">統計</h3>
+      <div class="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <div id="totalCount" class="text-2xl font-bold text-blue-600">0</div>
+          <div class="text-xs text-gray-600">総乗車数</div>
+        </div>
+        <div>
+          <div id="goCount" class="text-2xl font-bold text-green-600">0</div>
+          <div class="text-xs text-gray-600">Goアプリ</div>
+        </div>
+        <div>
+          <div id="streetCount" class="text-2xl font-bold text-yellow-600">0</div>
+          <div class="text-xs text-gray-600">手挙げ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- iOS Safari用インストールプロンプト -->
+  <div id="ios-install-prompt" class="install-prompt">
+    <div class="mb-3">📱 ホーム画面に追加して、アプリとして使用できます</div>
+    <div class="text-sm mb-3">
+      Safari の共有ボタン から<br>
+      「ホーム画面に追加」を選択してください
+    </div>
+    <button id="closePrompt" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">
+      OK
+    </button>
+  </div>
+
+  <script src="app.js"></script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        fetch('service-worker.js', { method: 'HEAD' })
+          .then(response => {
+            if (response.ok) {
+              navigator.serviceWorker.register('service-worker.js')
+                .then(registration => {
+                  console.log('✅ Service Worker registered');
+                })
+                .catch(error => {
+                  console.log('⚠️ Service Worker registration failed');
+                });
+            }
+          })
+          .catch(() => {
+            console.log('⚠️ Service Worker not available (normal for preview)');
+          });
+      });
+    }
+  </script>
+</body>
+</html>
