@@ -248,7 +248,7 @@ function saveAISettings() {
 // AIアドバイスを取得
 async function getAIAdvice() {
   if (!geminiApiKey) {
-    alert('APIキーが設定されていません');
+    alert('❌ APIキーが設定されていません\n設定ボタン（⚙️）からAPIキーを入力してください。');
     return;
   }
   
@@ -299,6 +299,8 @@ ${Object.entries(locationStats).map(([loc, count]) => `- ${loc}: ${count}件`).j
   elements.aiLoading.classList.remove('hidden');
   
   try {
+    console.log('🤖 AI API呼び出し開始...');
+    
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiApiKey, {
       method: 'POST',
       headers: {
@@ -313,18 +315,65 @@ ${Object.entries(locationStats).map(([loc, count]) => `- ${loc}: ${count}件`).j
       })
     });
     
+    console.log('📡 APIレスポンス受信:', response.status);
+    
     if (!response.ok) {
-      throw new Error('API request failed: ' + response.status);
+      const errorData = await response.json().catch(() => null);
+      console.error('❌ APIエラー:', errorData);
+      
+      let errorMessage = 'AI助言の取得に失敗しました。\n\n';
+      
+      if (response.status === 400) {
+        errorMessage += '❌ APIキーが無効です。\n正しいAPIキーを設定してください。\n\n';
+        errorMessage += 'APIキーの取得方法：\n';
+        errorMessage += '1. https://makersuite.google.com/app/apikey にアクセス\n';
+        errorMessage += '2. 「Create API key」をクリック\n';
+        errorMessage += '3. 生成されたキーをコピーして設定';
+      } else if (response.status === 403) {
+        errorMessage += '❌ APIキーの権限がありません。\n';
+        errorMessage += '・APIキーが有効化されているか確認してください\n';
+        errorMessage += '・Gemini APIが有効になっているか確認してください';
+      } else if (response.status === 429) {
+        errorMessage += '⚠️ API利用制限に達しました。\n';
+        errorMessage += 'しばらく時間をおいてから再度お試しください。';
+      } else {
+        errorMessage += `エラーコード: ${response.status}\n`;
+        errorMessage += errorData ? JSON.stringify(errorData, null, 2) : '詳細不明';
+      }
+      
+      alert(errorMessage);
+      return;
     }
     
     const data = await response.json();
+    console.log('✅ APIレスポンス:', data);
+    
+    // レスポンス構造を確認
+    if (!data.candidates || data.candidates.length === 0) {
+      throw new Error('AIからの応答がありません');
+    }
+    
     const advice = data.candidates[0].content.parts[0].text;
     
     elements.aiAdviceText.textContent = advice;
     elements.aiAdviceResult.classList.remove('hidden');
+    console.log('✅ AI助言表示完了');
+    
   } catch (err) {
-    console.error('AI助言の取得に失敗:', err);
-    alert('AI助言の取得に失敗しました。APIキーを確認してください。');
+    console.error('❌ AI助言の取得に失敗:', err);
+    
+    let errorMessage = 'AI助言の取得に失敗しました。\n\n';
+    
+    if (err.message.includes('Failed to fetch')) {
+      errorMessage += '❌ ネットワークエラー\n';
+      errorMessage += '・インターネット接続を確認してください\n';
+      errorMessage += '・ブラウザの拡張機能（広告ブロッカーなど）を無効にしてみてください';
+    } else {
+      errorMessage += '詳細: ' + err.message + '\n\n';
+      errorMessage += 'コンソール（F12キー）でエラー詳細を確認できます。';
+    }
+    
+    alert(errorMessage);
   } finally {
     elements.aiLoading.classList.add('hidden');
   }
@@ -497,7 +546,23 @@ function handleTimeSearch() {
     return diff <= 15;
   });
   
-  elements.searchResult.textContent = `${searchTime} の前後15分の記録を表示中（${filtered.length}件）`;
+  // わかりやすい範囲表示
+  let startMinutes = searchMinutes - 15;
+  let endMinutes = searchMinutes + 15;
+  
+  // 24時間の範囲内に収める
+  if (startMinutes < 0) startMinutes = 0;
+  if (endMinutes >= 1440) endMinutes = 1439; // 23:59
+  
+  const startHour = Math.floor(startMinutes / 60);
+  const startMin = startMinutes % 60;
+  const endHour = Math.floor(endMinutes / 60);
+  const endMin = endMinutes % 60;
+  
+  const startTime = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}`;
+  const endTime = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}`;
+  
+  elements.searchResult.textContent = `${searchTime} の前後15分（${startTime}〜${endTime}）の記録を表示中（${filtered.length}件）`;
   elements.searchResult.classList.remove('hidden');
   
   renderRides(filtered);

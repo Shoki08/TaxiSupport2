@@ -189,8 +189,9 @@
 
     <!-- 時間検索タブ -->
     <div id="searchContainer" class="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 hidden">
-      <label class="block text-sm font-semibold mb-2">🔍 乗車時刻で検索（前後15分）</label>
+      <label class="block text-sm font-semibold mb-2">🔍 乗車時刻で検索（指定時刻の前後15分）</label>
       <input type="time" id="searchTime" class="w-full border border-gray-300 rounded px-3 py-2 text-base">
+      <p class="text-xs text-gray-500 mt-1">例：21:02の記録は、20:47〜21:17の範囲で検索すると表示されます</p>
       <p id="searchResult" class="text-sm text-gray-600 mt-2 hidden"></p>
     </div>
 
@@ -204,12 +205,24 @@
     <!-- AI助言タブ -->
     <div id="aiContainer" class="bg-white rounded-lg shadow p-4 sm:p-6 mb-4 hidden">
       <div id="aiSetupMessage" class="text-center py-8">
-        <p class="text-gray-600 mb-4">🤖 AI助言機能を使用するには、Google Gemini APIキーが必要です</p>
-        <button id="aiSetupBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded">
-          APIキーを設定
+        <p class="text-xl mb-4">🤖 AI助言機能</p>
+        <p class="text-gray-600 mb-4">過去のデータから、今の時間帯におすすめのエリアをAIが提案します</p>
+        
+        <div class="bg-yellow-50 border border-yellow-200 rounded p-4 mb-4 text-left text-sm">
+          <p class="font-semibold mb-2">⚙️ 初回設定が必要です：</p>
+          <ol class="list-decimal list-inside space-y-1">
+            <li>下のボタンをクリック</li>
+            <li><a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Google AI Studio</a> でAPIキーを取得（無料）</li>
+            <li>取得したAPIキーを入力して保存</li>
+          </ol>
+        </div>
+        
+        <button id="aiSetupBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg">
+          APIキーを設定する
         </button>
+        
         <p class="text-xs text-gray-500 mt-4">
-          <a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Google AI Studio</a> で無料のAPIキーを取得できます
+          月60リクエストまで無料で利用できます
         </p>
       </div>
       
@@ -239,13 +252,26 @@
     <div id="aiSettingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <h2 class="text-xl font-bold mb-4">🤖 AI設定</h2>
+        
+        <div class="bg-blue-50 p-3 rounded mb-4 text-sm">
+          <p class="font-semibold mb-2">📋 APIキーの取得方法：</p>
+          <ol class="list-decimal list-inside space-y-1 text-xs">
+            <li><a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Google AI Studio</a> にアクセス</li>
+            <li>「Create API key」をクリック</li>
+            <li>「Create API key in new project」を選択</li>
+            <li>生成されたキーをコピー</li>
+          </ol>
+          <p class="text-xs text-gray-600 mt-2">※ 月60リクエストまで無料</p>
+        </div>
+        
         <div class="mb-4">
           <label class="block text-sm font-semibold mb-2">Google Gemini APIキー</label>
-          <input type="password" id="apiKeyInput" class="w-full border border-gray-300 rounded px-3 py-2 text-base" placeholder="AIzaSy...">
+          <input type="password" id="apiKeyInput" class="w-full border border-gray-300 rounded px-3 py-2 text-base font-mono text-sm" placeholder="AIzaSy...（40文字程度）">
           <p class="text-xs text-gray-500 mt-1">
-            <a href="https://makersuite.google.com/app/apikey" target="_blank" class="text-blue-600 underline">Google AI Studio</a> で無料取得可能
+            キーは「AIzaSy」で始まります
           </p>
         </div>
+        
         <div class="flex gap-2">
           <button id="saveApiKeyBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
             保存
